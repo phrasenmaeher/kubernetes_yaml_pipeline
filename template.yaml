@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: username-experiment-{0}
+  namespace: your-namespace
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        jobgroup: group-model-{1}
+    spec:
+      containers:
+        - image: {6}
+          imagePullPolicy: Always
+          name: train #name of the container
+          env:
+            - name: DATASET_DIR
+              value: "{7}"
+          command:
+            - "python"
+          args:
+            - "-u"
+            - "experiment.py"
+            - "--model"
+            - "{1}"
+            - "--batch_size"
+            - "{2}"
+            - "--dataset"
+            - "{3}"
+            - "--epochs"
+            - "{4}"
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - mountPath: "/datasets" # directory as seen WITHIN the container
+              name: datasets # matches volume's name from below
+      restartPolicy: Never
+      volumes:
+        - name: datasets
+          cephfs: #note that this is a cephfs volume, adapt to your case
+            monitors:
+              - some_random_ips
+            user: your-namespace  # <namespace>
+            path: "{5}"
+            secretRef:
+              name: ceph-secret
+            readOnly: false
+        - name: cache-volume
+          emptyDir:
